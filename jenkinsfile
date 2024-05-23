@@ -1,0 +1,64 @@
+pipeline {
+    agent any
+
+    environment {
+        BACKEND_IMAGE = 'todo-app-backend'
+        FRONTEND_IMAGE = 'todo-app-frontend'
+        BACKEND_CONTAINER = 'todo-backend'
+        FRONTEND_CONTAINER = 'todo-frontend'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout the code from your version control system
+                checkout scm
+            }
+        }
+
+        stage('Build Backend Image') {
+            steps {
+                script {
+                    // Navigate to the backend directory and build the Docker image
+                    dir('todo-app-backend') {
+                        sh 'docker build -t ${BACKEND_IMAGE} .'
+                    }
+                }
+            }
+        }
+
+        stage('Build Frontend Image') {
+            steps {
+                script {
+                    // Navigate to the frontend directory and build the Docker image
+                    dir('todo-app-frontend') {
+                        sh 'docker build -t ${FRONTEND_IMAGE} .'
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    // Stop and remove any existing containers
+                    sh 'docker stop ${BACKEND_CONTAINER} || true && docker rm ${BACKEND_CONTAINER} || true'
+                    sh 'docker stop ${FRONTEND_CONTAINER} || true && docker rm ${FRONTEND_CONTAINER} || true'
+
+                    // Run the backend container
+                    sh 'docker run -d --name ${BACKEND_CONTAINER} -p 5000:5000 ${BACKEND_IMAGE}'
+
+                    // Run the frontend container
+                    sh 'docker run -d --name ${FRONTEND_CONTAINER} -p 80:80 ${FRONTEND_IMAGE}'
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Cleanup dangling images
+            sh 'docker image prune -f'
+        }
+    }
+}
